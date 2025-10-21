@@ -1,1 +1,536 @@
 <H1>苗栗綠色旅館旅宿地圖</H1>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>森境漫遊｜苗栗綠色旅宿地圖</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" defer></script>
+    
+    <style>
+        /* ======================================================= */
+        /* 1. 基礎與文青風格 CSS */
+        /* ======================================================= */
+        :root {
+            --main-font: 'Noto Sans TC', sans-serif;
+            --secondary-font: 'Playfair Display', serif;
+            --primary-color: #558B6E; /* 柔和松綠 */
+            --secondary-color: #A8C7A5; /* 淺灰綠 */
+            --bg-color-light: #F7F3EF; /* 暖淺背景 */
+            --text-color: #383838;
+            --radius-large: 15px;
+            --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08); /* 柔和陰影 */
+        }
+
+        body {
+            font-family: var(--main-font);
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color-light);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 標題區 */
+        header {
+            padding: 20px 40px;
+            background: linear-gradient(90deg, #E0EBE8, var(--bg-color-light)); /* 淺色漸層 */
+            box-shadow: var(--shadow-soft);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-family: var(--secondary-font);
+            margin: 0;
+            font-size: 2.2em;
+            color: var(--primary-color);
+        }
+
+        /* 內容佈局 */
+        .main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        /* 玻璃擬態 (Glassmorphism) 核心樣式 */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7); /* 半透明白色 */
+            backdrop-filter: blur(10px); /* 模糊效果 */
+            border-radius: var(--radius-large);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: var(--shadow-soft);
+            padding: 20px;
+            margin: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        /* 側邊欄 */
+        .sidebar {
+            width: 380px;
+            height: 100%;
+            position: absolute;
+            z-index: 5;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        /* 地圖區 */
+        #map {
+            flex-grow: 1;
+            min-height: calc(100vh - 82px);
+            width: 100%;
+            position: absolute;
+            left: 380px; /* 為了讓出側邊欄空間 */
+        }
+
+        /* 按鈕與輸入框 */
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background-color: #6a9c7d;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .input-group, .filter-section {
+            margin-bottom: 20px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--secondary-color);
+            box-sizing: border-box;
+            margin-top: 5px;
+        }
+
+        /* 旅宿/景點卡片樣式 */
+        .stay-card, .poi-card {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            border-left: 5px solid var(--secondary-color);
+            transition: all 0.2s;
+        }
+        .stay-card:hover {
+            background-color: #fff;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .stay-card h4 { margin: 0 0 5px 0; color: var(--primary-color); }
+        .stay-card small { color: #888; }
+        
+        /* 彈出視窗 (Modal) */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(3px);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: var(--bg-color-light);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: var(--radius-large);
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content textarea { height: 100px; }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-btn:hover, .close-btn:focus { color: #000; text-decoration: none; cursor: pointer; }
+
+        /* 景點與介紹區 */
+        #poi-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 10px;
+        }
+        #ai-output {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px dashed var(--secondary-color);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>森境漫遊 | Miaoli Green-Stay Map</h1>
+        <p>探索苗栗在地、永續的文青感旅宿。結合 AI 力量，為您提供個性化旅遊建議。</p>
+    </header>
+
+    <div class="main-container">
+
+        <aside class="sidebar glass-panel">
+            <h2>⚙️ 系統設定</h2>
+
+            <div class="input-group">
+                <label for="gemini-key">**Gemini API 金鑰**</label>
+                <input type="password" id="gemini-key" placeholder="請輸入您的金鑰...">
+                <button class="btn" style="width: 100%; margin-top: 10px;" onclick="validateApiKey()">🔑 驗證並儲存金鑰</button>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #eee;">
+
+            <h2>🏨 旅宿與景點</h2>
+            <button class="btn" onclick="openModal('addStay')" style="margin-right: 10px;">+ 新增旅宿</button>
+            <button class="btn" onclick="openModal('addPOI')">+ 新增景點</button>
+            
+            <div class="filter-section">
+                <h3 style="margin-top: 20px;">旅宿列表 (點擊查看周邊景點)</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="green-only" checked>
+                    🌳 **只顯示綠指標旅宿**
+                </label>
+                <div id="stay-list">
+                    <p style="color: #888;">正在載入旅宿資料...</p>
+                </div>
+            </div>
+
+            <div id="poi-info" style="display: none;">
+                <h3 id="poi-title">周邊景點介紹</h3>
+                <div id="poi-list">
+                    </div>
+            </div>
+        </aside>
+
+        <div id="map">
+            </div>
+
+    </div>
+    
+    <div id="detail-panel" class="glass-panel" style="position: absolute; right: 15px; top: 15px; width: 300px; z-index: 10; display: none;">
+        <h3 id="current-poi-name" style="margin-top: 0;">景點名稱</h3>
+        <p id="current-poi-intro">景點簡介</p>
+        <p id="current-poi-coord" style="font-size: 0.9em; color: #666;"></p>
+        
+        <div id="ai-output">
+            <h4 style="color: var(--primary-color);">✨ AI 旅遊顧問</h4>
+            <p id="ai-content">點擊下方按鈕，讓 AI 為您產生景點的深度介紹。</p>
+            <img id="ai-image" style="width: 100%; border-radius: 8px; margin-top: 10px; display: none;" alt="AI 生成圖片">
+        </div>
+        
+        <button class="btn" style="margin-top: 10px;" onclick="generateAICall('description')">✍️ 生成 AI 介紹</button>
+        <button class="btn" style="margin-top: 10px; background-color: #E8A87C;" onclick="generateAICall('image')">🖼️ 生成 AI 圖片</button>
+        <button class="btn" style="margin-top: 10px; background-color: #79A3B1;" onclick="textToSpeech()">🔊 語音撥放</button>
+    </div>
+
+    <div id="addStayModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('addStayModal')">&times;</span>
+            <h2>➕ 新增旅宿</h2>
+            <form id="addStayForm">
+                <label>名稱:</label><input type="text" name="name" required><br><br>
+                <label>緯度 (lat):</label><input type="number" name="lat" required><br><br>
+                <label>經度 (lng):</label><input type="number" name="lng" required><br><br>
+                <label>地區:</label><select name="town">
+                    <option value="sanyi">三義鄉</option>
+                    <option value="nanzhuang">南庄鄉</option>
+                </select><br><br>
+                <label>綠指標:</label><input type="checkbox" name="isGreen"><br><br>
+                <label>旅遊風格 (AI 參考):</label><input type="text" name="tags" placeholder="e.g., 文青, 奢華, 親子"><br><br>
+                <button class="btn" type="submit">儲存旅宿</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="addPOIModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('addPOIModal')">&times;</span>
+            <h2>➕ 新增景點</h2>
+            <form id="addPOIForm">
+                <label>名稱:</label><input type="text" name="name" required><br><br>
+                <label>緯度 (lat):</label><input type="number" name="lat" required><br><br>
+                <label>經度 (lng):</label><input type="number" name="lng" required><br><br>
+                <label>簡介:</label><textarea name="intro"></textarea><br><br>
+                <button class="btn" type="submit">儲存景點</button>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // =======================================================
+        // A. 基礎資料與設定
+        // =======================================================
+        let map;
+        let currentMarkers = [];
+        let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
+        
+        // 旅宿與景點數據，優先從 Local Storage 載入
+        let allStays = JSON.parse(localStorage.getItem('miaoliStays')) || [
+            { id: 1, name: "山行寄野民宿", lat: 24.3725, lng: 120.7600, town: "sanyi", isGreen: true, tags: ["山景", "文青設計", "寵物"], pois: [101, 102] },
+            { id: 2, name: "泰安觀止溫泉會館", lat: 24.3800, lng: 121.0100, town: "taian", isGreen: true, tags: ["溫泉", "奢華", "自然"], pois: [103] },
+            { id: 3, name: "蘇維拉莊園", lat: 24.5802, lng: 121.0305, town: "nanzhuang", isGreen: false, tags: ["親子", "夢幻", "山景"], pois: [102] },
+        ];
+        let allPois = JSON.parse(localStorage.getItem('miaoliPois')) || [
+            { id: 101, name: "勝興車站", lat: 24.3805, lng: 120.7635, intro: "台灣縱貫鐵路最高點，充滿懷舊氣息的百年車站。" },
+            { id: 102, name: "南庄老街", lat: 24.5880, lng: 121.0120, intro: "桂花巷的特色小吃和日式建築，體驗客家文化。" },
+            { id: 103, name: "大湖草莓園", lat: 24.4100, lng: 120.8450, intro: "冬季來苗栗必訪，享受採草莓的樂趣。" },
+        ];
+        let currentStayId = null;
+
+        // =======================================================
+        // B. 地圖初始化與繪製
+        // =======================================================
+        function initMap() {
+            const miaoliCenter = { lat: 24.4673, lng: 120.8260 };
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: miaoliCenter,
+                zoom: 11,
+                // mapId 可用於 Cloud-based Styling，用於實現文青感風格地圖
+                disableDefaultUI: true,
+                zoomControl: true,
+            });
+
+            renderStayList();
+            renderMapMarkers(allStays);
+            setupEventListeners();
+        }
+
+        function renderMapMarkers(data, isPOI = false) {
+            // 清除舊標記
+            currentMarkers.forEach(marker => marker.setMap(null));
+            currentMarkers = [];
+            
+            data.forEach(item => {
+                const marker = new google.maps.Marker({
+                    position: { lat: item.lat, lng: item.lng },
+                    map,
+                    title: item.name,
+                    icon: isPOI ? { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" } : 
+                                 (item.isGreen ? { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" } : null),
+                });
+                
+                if (!isPOI) {
+                    // 旅宿點擊事件：顯示周邊景點
+                    marker.addListener("click", () => showNearbyPois(item.id));
+                } else {
+                    // 景點點擊事件：顯示詳細介紹
+                    marker.addListener("click", () => showPoiDetails(item));
+                }
+                
+                currentMarkers.push(marker);
+            });
+        }
+        
+        // =======================================================
+        // C. 旅宿列表與景點互動
+        // =======================================================
+        
+        function renderStayList() {
+            const listDiv = document.getElementById('stay-list');
+            listDiv.innerHTML = '';
+            
+            const greenOnly = document.getElementById('green-only').checked;
+            const filteredStays = allStays.filter(stay => !greenOnly || stay.isGreen);
+
+            if (filteredStays.length === 0) {
+                listDiv.innerHTML = '<p style="color:#A00;">找不到符合條件的綠色旅宿。</p>';
+                return;
+            }
+
+            filteredStays.forEach(stay => {
+                const card = document.createElement('div');
+                card.className = 'stay-card';
+                card.innerHTML = `
+                    <h4>${stay.name} ${stay.isGreen ? '🌲' : ''}</h4>
+                    <small>風格: ${stay.tags.join(', ')}</small>
+                `;
+                card.onclick = () => {
+                    showNearbyPois(stay.id);
+                    map.panTo({ lat: stay.lat, lng: stay.lng }); // 地圖移動到旅館
+                    map.setZoom(13); 
+                };
+                listDiv.appendChild(card);
+            });
+            // 重新繪製地圖標記 (只顯示旅宿)
+            renderMapMarkers(filteredStays);
+            document.getElementById('poi-info').style.display = 'none';
+            document.getElementById('detail-panel').style.display = 'none';
+        }
+
+        function showNearbyPois(stayId) {
+            currentStayId = stayId;
+            const stay = allStays.find(s => s.id === stayId);
+            const nearbyPois = allPois.filter(poi => stay.pois.includes(poi.id));
+            
+            const poiInfoDiv = document.getElementById('poi-info');
+            const poiListDiv = document.getElementById('poi-list');
+            
+            document.getElementById('poi-title').innerText = `【${stay.name}】周邊景點`;
+            poiListDiv.innerHTML = '';
+            
+            // 重新繪製地圖標記 (同時顯示旅館和景點)
+            renderMapMarkers([stay, ...nearbyPois], true); 
+            map.panTo({ lat: stay.lat, lng: stay.lng }); 
+            map.setZoom(13); 
+
+            nearbyPois.forEach(poi => {
+                const poiCard = document.createElement('div');
+                poiCard.className = 'poi-card';
+                poiCard.innerText = `📍 ${poi.name}`;
+                poiCard.onclick = () => showPoiDetails(poi);
+                poiListDiv.appendChild(poiCard);
+            });
+            
+            poiInfoDiv.style.display = 'block';
+        }
+
+        function showPoiDetails(poi) {
+            const detailPanel = document.getElementById('detail-panel');
+            document.getElementById('current-poi-name').innerText = poi.name;
+            document.getElementById('current-poi-intro').innerText = poi.intro;
+            document.getElementById('current-poi-coord').innerText = `座標: Lat ${poi.lat.toFixed(4)}, Lng ${poi.lng.toFixed(4)}`;
+            
+            document.getElementById('ai-content').innerText = '點擊下方按鈕，讓 AI 為您產生景點的深度介紹。';
+            document.getElementById('ai-image').style.display = 'none';
+
+            detailPanel.style.display = 'block';
+            map.panTo({ lat: poi.lat, lng: poi.lng }); 
+            map.setZoom(15);
+        }
+        
+        // =======================================================
+        // D. AI 互動與模擬 (需替換為真實 API 邏輯)
+        // =======================================================
+
+        async function validateApiKey() {
+            const key = document.getElementById('gemini-key').value;
+            if (!key) {
+                alert('請輸入金鑰！');
+                return;
+            }
+            
+            // ⚠️ 實際應用中，需進行一次輕量的 API 呼叫以驗證金鑰是否有效。
+            // 此處為模擬驗證成功
+            
+            localStorage.setItem('geminiApiKey', key);
+            geminiApiKey = key;
+            alert('Gemini API 金鑰儲存成功！ (請留意，此為前端儲存，安全性較低)');
+        }
+
+        async function generateAICall(type) {
+            if (!geminiApiKey) {
+                alert('請先在系統設定區輸入並儲存 Gemini API 金鑰！');
+                return;
+            }
+            
+            const poiName = document.getElementById('current-poi-name').innerText;
+            const outputDiv = document.getElementById('ai-output');
+            outputDiv.innerHTML = '<p>AI 正在努力生成中，請稍候...</p>';
+            
+            if (type === 'description') {
+                // 模擬 AI 生成文本
+                const stay = allStays.find(s => s.id === currentStayId);
+                const tags = stay ? stay.tags.join(', ') : '在地文化, 自然景觀';
+                
+                const mockContent = `
+                    **${poiName} 深度漫遊 (AI 專屬介紹)**\n\n
+                    基於您喜愛的文青/山景風格，AI 建議您這樣體驗:\n
+                    在晨曦時分，漫步於老街的石板路上，感受日治時期的幽靜。這裡的客家擂茶與手工麻糬，是與 ${stay.name} 氣氛最搭配的在地風味。
+                `;
+                document.getElementById('ai-content').innerText = mockContent;
+                outputDiv.innerHTML = document.getElementById('ai-content').outerHTML;
+            } else if (type === 'image') {
+                // 模擬 AI 生成圖片
+                const mockImageUrl = 'https://picsum.photos/400/300?random=' + Math.random(); // 隨機圖片代替 AI 生成圖
+                const imgElement = document.getElementById('ai-image');
+                imgElement.src = mockImageUrl;
+                imgElement.style.display = 'block';
+                outputDiv.innerHTML = document.getElementById('ai-content').outerHTML + imgElement.outerHTML;
+            }
+        }
+        
+        function textToSpeech() {
+            const content = document.getElementById('ai-content').innerText;
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(content);
+                utterance.lang = 'zh-TW';
+                speechSynthesis.speak(utterance);
+            } else {
+                alert('您的瀏覽器不支援語音撥放。');
+            }
+        }
+
+        // =======================================================
+        // E. 模組化 (Modal) 與本地儲存
+        // =======================================================
+
+        function openModal(type) {
+            document.getElementById(type + 'Modal').style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 點擊 modal 外部關閉
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = "none";
+            }
+        }
+
+        document.getElementById('addStayForm').onsubmit = (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const newStay = {
+                id: Date.now(), // 用時間戳作為唯一ID
+                name: form.name.value,
+                lat: parseFloat(form.lat.value),
+                lng: parseFloat(form.lng.value),
+                town: form.town.value,
+                isGreen: form.isGreen.checked,
+                tags: form.tags.value.split(',').map(t => t.trim()),
+                pois: [] // 新增的旅宿沒有預設景點
+            };
+            allStays.push(newStay);
+            localStorage.setItem('miaoliStays', JSON.stringify(allStays));
+            renderStayList();
+            closeModal('addStayModal');
+            alert('旅宿新增成功！');
+            form.reset();
+        };
+
+        // 新增景點表單 (addPOIForm) 邏輯類似，此處略過細節
+
+        // =======================================================
+        // F. 事件監聽器
+        // =======================================================
+        function setupEventListeners() {
+            document.getElementById('green-only').addEventListener('change', renderStayList);
+            // ... 其他篩選器的事件監聽 ...
+        }
+    </script>
+</body>
+</html>
