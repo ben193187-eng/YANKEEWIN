@@ -87,4 +87,143 @@
         /* 地圖區 */
         #map {
             flex-grow: 1;
-            min-height: calc(100vh -
+            min-height: calc(100vh - 82px);
+            width: 100%;
+            position: absolute;
+            left: 380px; /* 為了讓出側邊欄空間 */
+        }
+
+        /* 按鈕與輸入框 */
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background-color: #6a9c7d;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .input-group, .filter-section {
+            margin-bottom: 20px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--secondary-color);
+            box-sizing: border-box;
+            margin-top: 5px;
+        }
+
+        /* 旅宿/景點卡片樣式 */
+        .stay-card, .poi-card {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            border-left: 5px solid var(--secondary-color);
+            transition: all 0.2s;
+        }
+        .stay-card:hover {
+            background-color: #fff;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .stay-card h4 { margin: 0 0 5px 0; color: var(--primary-color); }
+        .stay-card small { color: #888; }
+        
+        /* 彈出視窗 (Modal) */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(3px);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: var(--bg-color-light);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: var(--radius-large);
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content textarea { height: 100px; }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-btn:hover, .close-btn:focus { color: #000; text-decoration: none; cursor: pointer; }
+
+        /* 景點與介紹區 */
+        #poi-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>森境漫遊 | Miaoli Green-Stay Map</h1>
+        <p>探索苗栗在地、永續的文青感旅宿。以資料為基礎，為您規劃旅遊路線。</p>
+    </header>
+
+    <div class="main-container">
+
+        <aside class="sidebar glass-panel">
+            <h2>🏨 旅宿與景點管理</h2>
+            
+            <button class="btn" onclick="openModal('addStay')" style="margin-right: 10px;">+ 新增旅宿</button>
+            <button class="btn" onclick="openModal('addPOI')">+ 新增景點</button>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+            <div class="filter-section">
+                <h3 style="margin-top: 0;">旅宿列表 (點擊查看周邊景點)</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="green-only" checked>
+                    🌳 **只顯示綠指標旅宿**
+                </label>
+                <div id="stay-list">
+                    <p style="color: #888;">正在載入旅宿資料...</p>
+                </div>
+            </div>
+
+            <div id="poi-info" style="display: none;">
+                <h3 id="poi-title">周邊景點介紹</h3>
+                <div id="poi-list">
+                    </div>
+            </div>
+        </aside>
+
+        <div id="map">
+            </div>
+
+    </div>
+    
+    <div id="detail-panel" class="glass-panel" style="position: absolute; right: 15px; top: 15px; width: 300px; z-index: 10; display: none;">
+        <h3 id="current-poi-name" style="margin-top: 0;">景點名稱</h3>
+        <p id="current-poi-intro">景點簡介</p>
+        <p id="current-poi-coord" style="font-size: 0.9em; color: #666;"></p>
+        
+        <div id="quick-link">
+            <h4 style="color: var(--primary-color);">🌐 快速操作</h4>
+            <button class="btn" style="margin
